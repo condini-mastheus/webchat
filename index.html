@@ -11,6 +11,7 @@
       #messages { list-style-type: none; margin: 0; padding: 0; }
       #messages li { padding: 5px 10px; }
       #messages li:nth-child(odd) { background: #eee; }
+      #messages li.typing { background: #fff; font-style: italic; color: #ccc; }
       #messages { margin-bottom: 40px }
     </style>
   </head>
@@ -23,15 +24,55 @@
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
       $(function () {
-        var socket = io();
+        var socket = io();        
+
+        user = 'user-' + Math.floor((Math.random() * 10000000000) + 1);
+
         $('form').submit(function(){
-          socket.emit('chat message', $('#m').val());
+          socket.emit('chat message', {
+            message: $('#m').val(),
+            user: user,
+          });
           $('#m').val('');
           return false;
         });
-        socket.on('chat message', function(msg){
+        socket.on('chat message', function(data){
+          $('#' + data.user).remove();
+          $('#messages').append($('<li>').html('<strong>'+ data.user +'</strong>: ' + data.message));
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+        socket.on('disconnected', function(msg){
           $('#messages').append($('<li>').text(msg));
           window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        socket.on('hi', function(){
+          $('#messages').append($('<li>').text('user connected'));
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        socket.on('bye', function(){
+          $('#messages').append($('<li>').text('user disconnected'));
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        $("#m").keypress(function(event) {
+          socket.emit('typing', user);
+        });
+
+        $("#m").keyup(function(event) {
+          if ($('#m').val().length === 0) {
+            socket.emit('notTyping', user);
+            return;
+          }
+        });
+        socket.on('typing', function (user) {
+            if($('#' + user).length === 0) {
+              $('#messages').append($('<li id="' + user + '" class="typing">').text(user + ' is typing'));
+            }
+        });
+        socket.on('notTyping', function (user) {
+            $('#' + user).remove();
         });
       });
     </script>
